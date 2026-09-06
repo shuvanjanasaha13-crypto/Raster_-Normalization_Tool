@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>RasterNorm | Raster Normalization Tool</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+
+<nav>
+
+    <div class="logo">
+
+        Raster<span>Norm</span>
+
+    </div>
+
+
+    <div class="nav-links">
+
+        <a href="#home">Home</a>
+
+        <a href="#tool">Tool</a>
+
+        <a href="#about">About</a>
+
+    </div>
+
+</nav>
+
+
+
+<section class="hero" id="home">
+
+
+    <div class="hero-content">
+
+        <h1>
+
+            Professional Raster
+            <span>Normalization Tool</span>
+
+        </h1>
+
+
+        <p>
+
+            Upload your raster dataset and normalize
+            pixel values using advanced GIS processing.
+
+        </p>
+
+
+        <a href="#tool">
+
+            <button>
+
+                Start Processing
+
+            </button>
+
+        </a>
+
+    </div>
+
+
+</section>
+
+
+
+<section class="tool-section"
+         id="tool">
+
+
+    <div class="tool-container">
+
+
+        <h2>
+
+            Normalize Your Raster
+
+        </h2>
+
+
+        <p>
+
+            Upload a GeoTIFF raster file
+            and choose a normalization method.
+
+        </p>
+
+
+
+        <!-- UPLOAD -->
+
+        <div class="upload-box">
+
+
+            <input
+                type="file"
+                id="rasterFile"
+                accept=".tif,.tiff"
+            >
+
+
+            <p>
+
+                Upload Raster File
+
+            </p>
+
+
+        </div>
+
+
+
+        <!-- NORMALIZATION -->
+
+        <label>
+
+            Select Normalization Method
+
+        </label>
+
+
+        <select id="method">
+
+
+            <option value="minmax">
+
+                Min-Max Normalization
+
+            </option>
+
+
+            <option value="zscore">
+
+                Z-Score Normalization
+
+            </option>
+
+
+        </select>
+
+
+
+        <!-- BUTTON -->
+
+        <button
+            id="normalizeBtn">
+
+            Normalize Raster
+
+        </button>
+
+
+
+        <!-- STATUS -->
+
+        <div
+            id="status">
+
+            Ready to process your raster
+
+        </div>
+
+
+    </div>
+
+
+</section>
+
+
+
+<section
+    id="about"
+    class="about">
+
+
+    <h2>
+
+        About RasterNorm
+
+    </h2>
+
+
+    <p>
+
+        RasterNorm is a GIS-based web application
+        designed to normalize raster datasets
+        for remote sensing and spatial analysis.
+
+    </p>
+
+
+</section>
+
+
+
+<footer>
+
+    <p>
+        © 2026 RasterNorm | GIS & Remote Sensing Tool
+    </p>
+
+    <p class="creator">
+        Created by <strong>Shuvanjana Saha Shashi</strong>
+    </p>
+
+    <p class="student-id">
+        Student ID: 240417
+    </p>
+
+</footer>
+
+
+    <p>
+
+        © 2026 RasterNorm
+        | GIS & Remote Sensing Tool
+
+    </p>
+
+
+</footer>
+
+
+
+<script src="script.js"></script>
+
+
+</body>
+
+</html>

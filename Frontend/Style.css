@@ -1,0 +1,475 @@
+* {
+
+    margin: 0;
+
+    padding: 0;
+
+    box-sizing: border-box;
+
+}
+
+
+body {
+
+    font-family:
+
+    Arial,
+    sans-serif;
+
+    background:
+
+    #f4f7fb;
+
+    color:
+
+    #222;
+
+}
+
+
+
+/* NAVIGATION */
+
+
+nav {
+
+    display:
+
+    flex;
+
+    justify-content:
+
+    space-between;
+
+    align-items:
+
+    center;
+
+    padding:
+
+    20px 10%;
+
+    background:
+
+    white;
+
+    box-shadow:
+
+    0 2px 10px
+
+    rgba(0,0,0,0.08);
+
+}
+
+
+.logo {
+
+    font-size:
+
+    25px;
+
+    font-weight:
+
+    bold;
+
+}
+
+
+.logo span {
+
+    color:
+
+    #2563eb;
+
+}
+
+
+.nav-links a {
+
+    margin-left:
+
+    25px;
+
+    text-decoration:
+
+    none;
+
+    color:
+
+    #333;
+
+}
+
+
+
+/* HERO */
+
+
+.hero {
+
+    min-height:
+
+    500px;
+
+    display:
+
+    flex;
+
+    align-items:
+
+    center;
+
+    justify-content:
+
+    center;
+
+    text-align:
+
+    center;
+
+    background:
+
+    linear-gradient(
+
+        135deg,
+
+        #2563eb,
+
+        #1e40af
+
+    );
+
+    color:
+
+    white;
+
+}
+
+
+.hero h1 {
+
+    font-size:
+
+    55px;
+
+}
+
+
+.hero span {
+
+    color:
+
+    #93c5fd;
+
+}
+
+
+.hero p {
+
+    margin:
+
+    20px;
+
+    font-size:
+
+    18px;
+
+}
+
+
+.hero button {
+
+    padding:
+
+    15px 30px;
+
+    border:
+
+    none;
+
+    border-radius:
+
+    8px;
+
+    font-size:
+
+    16px;
+
+    cursor:
+
+    pointer;
+
+}
+
+
+
+/* TOOL */
+
+
+.tool-section {
+
+    padding:
+
+    80px 20px;
+
+}
+
+
+.tool-container {
+
+    max-width:
+
+    600px;
+
+    margin:
+
+    auto;
+
+    background:
+
+    white;
+
+    padding:
+
+    40px;
+
+    border-radius:
+
+    15px;
+
+    box-shadow:
+
+    0 5px 25px
+
+    rgba(0,0,0,0.1);
+
+}
+
+
+.tool-container h2 {
+
+    text-align:
+
+    center;
+
+    margin-bottom:
+
+    10px;
+
+}
+
+
+.tool-container p {
+
+    text-align:
+
+    center;
+
+    margin-bottom:
+
+    30px;
+
+}
+
+
+
+/* UPLOAD */
+
+
+.upload-box {
+
+    border:
+
+    2px dashed
+
+    #2563eb;
+
+    padding:
+
+    40px;
+
+    text-align:
+
+    center;
+
+    margin-bottom:
+
+    25px;
+
+    border-radius:
+
+    10px;
+
+}
+
+
+input[type="file"] {
+
+    margin-bottom:
+
+    10px;
+
+}
+
+
+
+/* SELECT */
+
+
+select {
+
+    width:
+
+    100%;
+
+    padding:
+
+    12px;
+
+    margin-top:
+
+    10px;
+
+    margin-bottom:
+
+    20px;
+
+    border-radius:
+
+    8px;
+
+    border:
+
+    1px solid #ccc;
+
+}
+
+
+
+/* BUTTON */
+
+
+#normalizeBtn {
+
+    width:
+
+    100%;
+
+    padding:
+
+    15px;
+
+    border:
+
+    none;
+
+    border-radius:
+
+    8px;
+
+    background:
+
+    #2563eb;
+
+    color:
+
+    white;
+
+    font-size:
+
+    17px;
+
+    cursor:
+
+    pointer;
+
+}
+
+
+#normalizeBtn:hover {
+
+    background:
+
+    #1e40af;
+
+}
+
+
+
+/* STATUS */
+
+
+#status {
+
+    text-align:
+
+    center;
+
+    margin-top:
+
+    20px;
+
+    font-weight:
+
+    bold;
+
+}
+
+
+
+/* ABOUT */
+
+
+.about {
+
+    padding:
+
+    80px 20px;
+
+    text-align:
+
+    center;
+
+    background:
+
+    white;
+
+}
+
+
+.about p {
+
+    max-width:
+
+    600px;
+
+    margin:
+
+    20px auto;
+
+}
+
+
+
+/* FOOTER */
+
+
+footer {
+
+    background:
+
+    #111827;
+
+    color:
+
+    white;
+
+    text-align:
+
+    center;
+
+    padding:
+
+    20px;
+
+}
