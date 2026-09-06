@@ -56,7 +56,7 @@ normalizeBtn.addEventListener(
             const response =
             await fetch(
 
-                "http://127.0.0.1:5000/normalize",
+                "https://raster-normalization-tool-api-h5q6.onrender.com/normalize",
 
                 {
 
