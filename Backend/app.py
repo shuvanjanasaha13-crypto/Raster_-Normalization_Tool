@@ -44,18 +44,6 @@ os.makedirs(
 
 
 
-@app.route("/")
-
-def home():
-
-    return {
-
-        "message":
-
-        "Raster Normalization API is running"
-
-    }
-
 
 
 
