@@ -12,6 +12,12 @@ import numpy as np
 import os
 
 import uuid
+import matplotlib
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt
+import base64
+import io
 
 from flask_cors import CORS
 app = Flask(__name__)
