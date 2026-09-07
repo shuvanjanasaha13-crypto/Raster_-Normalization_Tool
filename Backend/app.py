@@ -1,18 +1,19 @@
-
 from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 
-import rasterio
-from rasterio.transform import from_origin
-from PIL import Image
-
-import numpy as np
 import os
 import uuid
 import io
 import base64
 
+import numpy as np
+import rasterio
+
+from rasterio.transform import from_origin
+from PIL import Image
+
 import matplotlib
+
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
@@ -24,8 +25,6 @@ import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 
-# Allow frontend (Netlify/GitHub/etc.) to communicate
-# with this Flask API.
 CORS(app)
 
 
@@ -54,7 +53,7 @@ ALLOWED_EXTENSIONS = {
 
 
 # ============================================================
-# HELPER: CHECK FILE TYPE
+# CHECK FILE TYPE
 # ============================================================
 
 def allowed_file(filename):
@@ -66,106 +65,140 @@ def allowed_file(filename):
 
 # ============================================================
 # MIN-MAX NORMALIZATION
+# Formula: X' = (X - Xmin) / (Xmax - Xmin)
+# Output Range: 0 to 1
 # ============================================================
 
 def min_max_normalization(data):
 
-    valid = np.isfinite(data)
+    data = data.astype(np.float32)
 
-    if not np.any(valid):
+    valid_mask = np.isfinite(data)
 
-        return np.zeros_like(
-            data,
-            dtype=np.float32
-        )
-
-    minimum = np.nanmin(
-        data[valid]
+    normalized = np.full(
+        data.shape,
+        np.nan,
+        dtype=np.float32
     )
 
-    maximum = np.nanmax(
-        data[valid]
-    )
+    # No valid values
+    if not np.any(valid_mask):
+
+        return normalized
+
+    # Get only valid values
+    valid_values = data[valid_mask]
+
+    minimum = np.min(valid_values)
+
+    maximum = np.max(valid_values)
 
     # Avoid division by zero
     if maximum == minimum:
 
-        result = np.zeros_like(
-            data,
-            dtype=np.float32
-        )
+        normalized[valid_mask] = 0.0
 
-        result[valid] = 0
+        return normalized
 
-        return result
-
-    result = (
-        (data - minimum) /
-        (maximum - minimum)
+    # Apply Min-Max formula
+    normalized[valid_mask] = (
+        valid_values - minimum
+    ) / (
+        maximum - minimum
     )
 
-    # Keep invalid cells as NaN
-    result = np.where(
-        valid,
-        result,
-        np.nan
-    )
-
-    return result.astype(
-        np.float32
-    )
+    return normalized.astype(np.float32)
 
 
 # ============================================================
 # Z-SCORE NORMALIZATION
+# Formula: X' = (X - Mean) / Standard Deviation
 # ============================================================
 
 def z_score_normalization(data):
 
-    valid = np.isfinite(data)
+    data = data.astype(np.float32)
 
-    if not np.any(valid):
+    valid_mask = np.isfinite(data)
 
-        return np.zeros_like(
-            data,
-            dtype=np.float32
-        )
-
-    mean = np.nanmean(
-        data[valid]
+    normalized = np.full(
+        data.shape,
+        np.nan,
+        dtype=np.float32
     )
 
-    std = np.nanstd(
-        data[valid]
-    )
+    if not np.any(valid_mask):
+
+        return normalized
+
+    valid_values = data[valid_mask]
+
+    mean = np.mean(valid_values)
+
+    standard_deviation = np.std(valid_values)
 
     # Avoid division by zero
-    if std == 0:
+    if standard_deviation == 0:
 
-        result = np.zeros_like(
-            data,
-            dtype=np.float32
+        normalized[valid_mask] = 0.0
+
+        return normalized
+
+    normalized[valid_mask] = (
+        valid_values - mean
+    ) / standard_deviation
+
+    return normalized.astype(np.float32)
+
+
+# ============================================================
+# DECIMAL SCALING NORMALIZATION
+# Formula: X' = X / 10^j
+# ============================================================
+
+def decimal_scaling_normalization(data):
+
+    data = data.astype(np.float32)
+
+    valid_mask = np.isfinite(data)
+
+    normalized = np.full(
+        data.shape,
+        np.nan,
+        dtype=np.float32
+    )
+
+    if not np.any(valid_mask):
+
+        return normalized
+
+    valid_values = data[valid_mask]
+
+    maximum_absolute_value = np.max(
+        np.abs(valid_values)
+    )
+
+    # Avoid zero
+    if maximum_absolute_value == 0:
+
+        normalized[valid_mask] = 0.0
+
+        return normalized
+
+    scaling_power = int(
+        np.ceil(
+            np.log10(
+                maximum_absolute_value + 1
+            )
         )
-
-        result[valid] = 0
-
-        return result
-
-    result = (
-        (data - mean) /
-        std
     )
 
-    # Keep invalid cells as NaN
-    result = np.where(
-        valid,
-        result,
-        np.nan
+    normalized[valid_mask] = (
+        valid_values /
+        (10 ** scaling_power)
     )
 
-    return result.astype(
-        np.float32
-    )
+    return normalized.astype(np.float32)
 
 
 # ============================================================
@@ -178,67 +211,100 @@ def create_spatial_map(
     bounds=None
 ):
 
-    figure = plt.figure(
+    figure, axis = plt.subplots(
         figsize=(9, 7)
     )
 
-    if is_geotiff and bounds:
+    # Mask invalid values
+    display_data = np.ma.masked_invalid(
+        normalized
+    )
+
+    # Georeferenced TIFF
+    if is_geotiff and bounds is not None:
 
         extent = [
+
             bounds.left,
+
             bounds.right,
+
             bounds.bottom,
+
             bounds.top
+
         ]
 
-        plt.imshow(
-            normalized,
+        image = axis.imshow(
+
+            display_data,
+
             cmap="viridis",
+
             extent=extent,
+
             origin="upper"
+
         )
 
-        plt.xlabel(
+        axis.set_xlabel(
             "X Coordinate"
         )
 
-        plt.ylabel(
+        axis.set_ylabel(
             "Y Coordinate"
         )
 
+    # PNG / JPG / normal raster
     else:
 
-        plt.imshow(
-            normalized,
+        image = axis.imshow(
+
+            display_data,
+
             cmap="viridis",
+
             origin="upper"
+
         )
 
-        plt.xlabel(
+        axis.set_xlabel(
             "Column"
         )
 
-        plt.ylabel(
+        axis.set_ylabel(
             "Row"
         )
 
-    plt.colorbar(
+    # Colorbar
+    figure.colorbar(
+
+        image,
+
+        ax=axis,
+
         label="Normalized Value"
+
     )
 
-    plt.title(
+    axis.set_title(
         "RasterNorm - Normalized Spatial Map"
     )
 
-    plt.tight_layout()
+    figure.tight_layout()
 
     buffer = io.BytesIO()
 
-    plt.savefig(
+    figure.savefig(
+
         buffer,
+
         format="png",
+
         dpi=150,
+
         bbox_inches="tight"
+
     )
 
     plt.close(figure)
@@ -252,6 +318,7 @@ def create_spatial_map(
 
 # ============================================================
 # CREATE VALUE GRID
+# Maximum 20 x 20 sample
 # ============================================================
 
 def create_value_grid(
@@ -260,43 +327,56 @@ def create_value_grid(
     max_cols=20
 ):
 
-    rows, cols = normalized.shape
+    rows, columns = normalized.shape
 
-    number_of_rows = min(
+    sample_rows = min(
         rows,
         max_rows
     )
 
-    number_of_cols = min(
-        cols,
+    sample_columns = min(
+        columns,
         max_cols
     )
 
     row_indices = np.linspace(
+
         0,
+
         rows - 1,
-        number_of_rows
+
+        sample_rows
+
     ).astype(int)
 
-    col_indices = np.linspace(
+    column_indices = np.linspace(
+
         0,
-        cols - 1,
-        number_of_cols
+
+        columns - 1,
+
+        sample_columns
+
     ).astype(int)
 
     grid = normalized[
         np.ix_(
             row_indices,
-            col_indices
+            column_indices
         )
     ]
 
-    # Replace NaN/Infinity for JSON
+    # JSON cannot handle NaN or Infinity
     grid = np.nan_to_num(
+
         grid,
+
         nan=0.0,
+
         posinf=0.0,
+
         neginf=0.0
+
     )
 
     return grid.tolist()
@@ -308,50 +388,74 @@ def create_value_grid(
 
 def create_normalized_png(normalized):
 
-    valid = np.isfinite(
+    valid_mask = np.isfinite(
         normalized
     )
 
-    if np.any(valid):
+    scaled = np.zeros_like(
 
-        minimum = np.nanmin(
-            normalized[valid]
+        normalized,
+
+        dtype=np.float32
+
+    )
+
+    if np.any(valid_mask):
+
+        valid_values = normalized[
+            valid_mask
+        ]
+
+        minimum = np.min(
+            valid_values
         )
 
-        maximum = np.nanmax(
-            normalized[valid]
+        maximum = np.max(
+            valid_values
         )
 
         if maximum != minimum:
 
-            scaled = (
-                (normalized - minimum) /
-                (maximum - minimum)
+            scaled[valid_mask] = (
+
+                (
+                    normalized[valid_mask]
+                    - minimum
+                )
+
+                /
+
+                (
+                    maximum
+                    - minimum
+                )
+
             ) * 255
 
         else:
 
-            scaled = np.zeros_like(
-                normalized
-            )
-
-    else:
-
-        scaled = np.zeros_like(
-            normalized
-        )
+            scaled[valid_mask] = 0
 
     scaled = np.nan_to_num(
+
         scaled,
+
         nan=0.0,
+
         posinf=0.0,
+
         neginf=0.0
+
     )
 
     scaled = np.clip(
+
         scaled,
+
         0,
+
         255
+
     ).astype(
         np.uint8
     )
@@ -363,8 +467,11 @@ def create_normalized_png(normalized):
     buffer = io.BytesIO()
 
     image.save(
+
         buffer,
+
         format="PNG"
+
     )
 
     buffer.seek(0)
@@ -373,7 +480,53 @@ def create_normalized_png(normalized):
 
 
 # ============================================================
-# HOME / API STATUS
+# CREATE STATISTICS
+# ============================================================
+
+def create_statistics(data):
+
+    valid_values = data[
+        np.isfinite(data)
+    ]
+
+    if len(valid_values) == 0:
+
+        return {
+
+            "minimum": 0.0,
+
+            "maximum": 0.0,
+
+            "mean": 0.0,
+
+            "standard_deviation": 0.0,
+
+            "valid_pixels": 0
+
+        }
+
+    return {
+
+        "minimum":
+            float(np.min(valid_values)),
+
+        "maximum":
+            float(np.max(valid_values)),
+
+        "mean":
+            float(np.mean(valid_values)),
+
+        "standard_deviation":
+            float(np.std(valid_values)),
+
+        "valid_pixels":
+            int(len(valid_values))
+
+    }
+
+
+# ============================================================
+# HOME ROUTE
 # ============================================================
 
 @app.route("/")
@@ -384,23 +537,52 @@ def home():
         "success": True,
 
         "message":
-        "RasterNorm Raster Normalization API is running.",
+            "RasterNorm API is running.",
 
         "version":
-        "1.0",
+            "3.0",
 
         "supported_formats": [
+
             ".tif",
+
             ".tiff",
+
             ".png",
+
             ".jpg",
+
             ".jpeg"
+
         ],
 
         "normalization_methods": [
+
             "minmax",
-            "zscore"
+
+            "zscore",
+
+            "decimal_scaling"
+
         ]
+
+    })
+
+
+# ============================================================
+# HEALTH CHECK
+# ============================================================
+
+@app.route("/health")
+def health():
+
+    return jsonify({
+
+        "status":
+            "healthy",
+
+        "service":
+            "RasterNorm API"
 
     })
 
@@ -430,7 +612,7 @@ def normalize_raster():
                 "success": False,
 
                 "error":
-                "No file uploaded."
+                    "No file uploaded."
 
             }), 400
 
@@ -445,48 +627,55 @@ def normalize_raster():
                 "success": False,
 
                 "error":
-                "No file selected."
+                    "No file selected."
 
             }), 400
 
 
-        if not allowed_file(
-            file.filename
-        ):
+        if not allowed_file(file.filename):
 
             return jsonify({
 
                 "success": False,
 
                 "error":
-                "Unsupported file format. "
-                "Please use TIFF, PNG, JPG or JPEG."
+                    "Unsupported file format. Please use TIFF, PNG, JPG or JPEG."
 
             }), 400
 
 
         # ====================================================
-        # NORMALIZATION METHOD
+        # GET NORMALIZATION METHOD
         # ====================================================
 
         method = request.form.get(
+
             "method",
+
             "minmax"
-        ).lower()
+
+        ).strip().lower()
 
 
-        if method not in [
+        valid_methods = [
+
             "minmax",
-            "zscore"
-        ]:
+
+            "zscore",
+
+            "decimal_scaling"
+
+        ]
+
+
+        if method not in valid_methods:
 
             return jsonify({
 
                 "success": False,
 
                 "error":
-                "Invalid normalization method. "
-                "Use minmax or zscore."
+                    "Invalid normalization method."
 
             }), 400
 
@@ -501,6 +690,7 @@ def normalize_raster():
             original_filename
         )[1].lower()
 
+
         file_id = str(
             uuid.uuid4()
         )
@@ -510,72 +700,76 @@ def normalize_raster():
 
             UPLOAD_FOLDER,
 
-            file_id +
-            extension
+            f"{file_id}{extension}"
 
         )
 
 
+        # Save uploaded file
         file.save(
             input_path
         )
 
 
         # ====================================================
-        # VARIABLES
+        # INITIAL VARIABLES
         # ====================================================
 
         is_geotiff = extension in [
+
             ".tif",
+
             ".tiff"
+
         ]
 
         bounds = None
+
         crs = None
-        transform = None
+
         profile = None
+
         nodata = None
 
 
         # ====================================================
-        # READ GEOTIFF
+        # READ TIFF / GEOTIFF
         # ====================================================
 
         if is_geotiff:
 
             with rasterio.open(
                 input_path
-            ) as src:
+            ) as source:
 
-                data = src.read(
+                # Read first band
+                data = source.read(
                     1
                 ).astype(
                     np.float32
                 )
 
-                profile = (
-                    src.profile.copy()
-                )
 
-                bounds = src.bounds
+                profile = source.profile.copy()
 
-                crs = src.crs
+                bounds = source.bounds
 
-                transform = src.transform
+                crs = source.crs
 
-                nodata = src.nodata
+                nodata = source.nodata
 
 
-                # --------------------------------------------
-                # HANDLE NODATA
-                # --------------------------------------------
-
+                # Convert NoData to NaN
                 if nodata is not None:
 
                     data = np.where(
+
                         data == nodata,
+
                         np.nan,
+
                         data
+
                     )
 
 
@@ -595,9 +789,11 @@ def normalize_raster():
             )
 
             data = np.array(
-                image
-            ).astype(
-                np.float32
+
+                image,
+
+                dtype=np.float32
+
             )
 
 
@@ -612,11 +808,14 @@ def normalize_raster():
                 "success": False,
 
                 "error":
-                "The uploaded raster could not be "
-                "converted to a single-band raster."
+                    "The uploaded file could not be processed as a single-band raster."
 
             }), 400
 
+
+        # ====================================================
+        # RASTER SIZE
+        # ====================================================
 
         height = int(
             data.shape[0]
@@ -628,7 +827,28 @@ def normalize_raster():
 
 
         # ====================================================
-        # NORMALIZATION
+        # CHECK VALID PIXELS
+        # ====================================================
+
+        valid_pixels = data[
+            np.isfinite(data)
+        ]
+
+
+        if len(valid_pixels) == 0:
+
+            return jsonify({
+
+                "success": False,
+
+                "error":
+                    "The raster contains no valid pixel values."
+
+            }), 400
+
+
+        # ====================================================
+        # APPLY NORMALIZATION
         # ====================================================
 
         if method == "minmax":
@@ -643,7 +863,8 @@ def normalize_raster():
                 "Min-Max Normalization"
             )
 
-        else:
+
+        elif method == "zscore":
 
             normalized = (
                 z_score_normalization(
@@ -656,6 +877,19 @@ def normalize_raster():
             )
 
 
+        elif method == "decimal_scaling":
+
+            normalized = (
+                decimal_scaling_normalization(
+                    data
+                )
+            )
+
+            method_name = (
+                "Decimal Scaling Normalization"
+            )
+
+
         # ====================================================
         # CREATE SPATIAL MAP
         # ====================================================
@@ -664,9 +898,9 @@ def normalize_raster():
 
             normalized,
 
-            is_geotiff=is_geotiff,
+            is_geotiff,
 
-            bounds=bounds
+            bounds
 
         )
 
@@ -676,26 +910,32 @@ def normalize_raster():
         # ====================================================
 
         value_grid = create_value_grid(
+
             normalized,
+
             max_rows=20,
+
             max_cols=20
+
         )
 
 
         # ====================================================
-        # SAVE NORMALIZED GEOTIFF
+        # CREATE OUTPUT TIFF PATH
         # ====================================================
 
         tif_output_path = os.path.join(
 
             OUTPUT_FOLDER,
 
-            "normalized_" +
-            file_id +
-            ".tif"
+            f"normalized_{file_id}.tif"
 
         )
 
+
+        # ====================================================
+        # SAVE GEOTIFF
+        # ====================================================
 
         if is_geotiff:
 
@@ -706,7 +946,9 @@ def normalize_raster():
 
             output_profile.update(
 
-                dtype=rasterio.float32,
+                driver="GTiff",
+
+                dtype="float32",
 
                 count=1,
 
@@ -715,39 +957,31 @@ def normalize_raster():
             )
 
 
-            # --------------------------------------------
-            # Preserve CRS
-            # --------------------------------------------
-
-            if crs is not None:
-
-                output_profile.update(
-                    crs=crs
-                )
+            output_data = (
+                normalized.copy()
+            )
 
 
-            # --------------------------------------------
-            # Preserve transform
-            # --------------------------------------------
-
-            if transform is not None:
-
-                output_profile.update(
-                    transform=transform
-                )
-
-
-            # --------------------------------------------
-            # Handle NoData
-            # --------------------------------------------
-
-            # We use NaN internally. For the output,
-            # use the original NoData value when available.
-
+            # Preserve NoData
             if nodata is not None:
 
                 output_profile.update(
+
                     nodata=nodata
+
+                )
+
+
+                output_data = np.where(
+
+                    np.isfinite(
+                        output_data
+                    ),
+
+                    output_data,
+
+                    nodata
+
                 )
 
 
@@ -759,33 +993,9 @@ def normalize_raster():
 
                 **output_profile
 
-            ) as dst:
+            ) as destination:
 
-                output_data = (
-                    normalized.copy()
-                )
-
-
-                # ----------------------------------------
-                # Restore original NoData value
-                # ----------------------------------------
-
-                if nodata is not None:
-
-                    output_data = np.where(
-
-                        np.isfinite(
-                            output_data
-                        ),
-
-                        output_data,
-
-                        nodata
-
-                    )
-
-
-                dst.write(
+                destination.write(
 
                     output_data.astype(
                         np.float32
@@ -796,11 +1006,11 @@ def normalize_raster():
                 )
 
 
-        else:
+        # ====================================================
+        # SAVE PNG / JPG AS TIFF
+        # ====================================================
 
-            # =================================================
-            # PNG/JPG → NEW PIXEL-BASED GEOTIFF
-            # =================================================
+        else:
 
             output_transform = from_origin(
 
@@ -812,6 +1022,21 @@ def normalize_raster():
 
                 1
 
+            )
+
+
+            output_data = np.nan_to_num(
+
+                normalized,
+
+                nan=0.0,
+
+                posinf=0.0,
+
+                neginf=0.0
+
+            ).astype(
+                np.float32
             )
 
 
@@ -833,18 +1058,11 @@ def normalize_raster():
 
                 transform=output_transform
 
-            ) as dst:
+            ) as destination:
 
-                dst.write(
+                destination.write(
 
-                    np.nan_to_num(
-                        normalized,
-                        nan=0.0,
-                        posinf=0.0,
-                        neginf=0.0
-                    ).astype(
-                        np.float32
-                    ),
+                    output_data,
 
                     1
 
@@ -852,30 +1070,29 @@ def normalize_raster():
 
 
         # ====================================================
-        # CREATE NORMALIZED PNG
+        # CREATE PNG OUTPUT
         # ====================================================
 
         png_output_path = os.path.join(
 
             OUTPUT_FOLDER,
 
-            "normalized_" +
-            file_id +
-            ".png"
+            f"normalized_{file_id}.png"
 
         )
 
 
-        png_buffer = (
-            create_normalized_png(
-                normalized
-            )
+        png_buffer = create_normalized_png(
+            normalized
         )
 
 
         with open(
+
             png_output_path,
+
             "wb"
+
         ) as output_file:
 
             output_file.write(
@@ -884,128 +1101,75 @@ def normalize_raster():
 
 
         # ====================================================
-        # STATISTICS
+        # CREATE STATISTICS
         # ====================================================
 
-        valid_values = normalized[
-            np.isfinite(
-                normalized
-            )
-        ]
-
-
-        if len(valid_values) > 0:
-
-            statistics = {
-
-                "minimum":
-                float(
-                    np.min(
-                        valid_values
-                    )
-                ),
-
-                "maximum":
-                float(
-                    np.max(
-                        valid_values
-                    )
-                ),
-
-                "mean":
-                float(
-                    np.mean(
-                        valid_values
-                    )
-                ),
-
-                "standard_deviation":
-                float(
-                    np.std(
-                        valid_values
-                    )
-                ),
-
-                "valid_pixels":
-                int(
-                    len(
-                        valid_values
-                    )
-                )
-
-            }
-
-        else:
-
-            statistics = {}
+        statistics = create_statistics(
+            normalized
+        )
 
 
         # ====================================================
-        # RESPONSE
+        # SUCCESS RESPONSE
         # ====================================================
 
         return jsonify({
 
             "success":
-            True,
+                True,
 
             "message":
-            "Raster normalization completed successfully.",
+                "Raster normalization completed successfully.",
 
             "filename":
-            original_filename,
+                original_filename,
 
             "file_type":
-            extension.replace(
-                ".",
-                ""
-            ).upper(),
+                extension.replace(
+                    ".",
+                    ""
+                ).upper(),
 
             "normalization_method":
-            method,
+                method,
 
             "normalization_method_name":
-            method_name,
+                method_name,
 
             "width":
-            width,
+                width,
 
             "height":
-            height,
-
-            "original_preview":
-            None,
-
-            "preview":
-            spatial_map,
+                height,
 
             "normalized_spatial_map":
-            spatial_map,
+                spatial_map,
+
+            "preview":
+                spatial_map,
 
             "value_grid":
-            value_grid,
+                value_grid,
 
             "statistics":
-            statistics,
+                statistics,
 
             "is_georeferenced":
-            bool(
-                is_geotiff and
-                crs is not None
-            ),
+                bool(
+                    is_geotiff
+                    and crs is not None
+                ),
 
             "crs":
-            str(crs)
-            if crs is not None
-            else None,
+                str(crs)
+                if crs is not None
+                else None,
 
             "download_url":
-            "/download/" +
-            file_id,
+                f"/download/{file_id}",
 
             "image_download_url":
-            "/download-image/" +
-            file_id
+                f"/download-image/{file_id}"
 
         })
 
@@ -1014,26 +1178,48 @@ def normalize_raster():
     # ERROR HANDLING
     # ========================================================
 
-    except Exception as e:
-
-        print(
-            "RasterNorm Error:",
-            str(e)
-        )
+    except Exception as error:
 
         return jsonify({
 
             "success":
-            False,
+                False,
 
             "error":
-            str(e)
+                str(error)
 
         }), 500
 
 
+    # ========================================================
+    # DELETE TEMPORARY UPLOAD
+    # ========================================================
+
+    finally:
+
+        if (
+
+            input_path is not None
+
+            and os.path.exists(
+                input_path
+            )
+
+        ):
+
+            try:
+
+                os.remove(
+                    input_path
+                )
+
+            except OSError:
+
+                pass
+
+
 # ============================================================
-# DOWNLOAD NORMALIZED GEOTIFF
+# DOWNLOAD NORMALIZED TIFF
 # ============================================================
 
 @app.route(
@@ -1045,9 +1231,7 @@ def download_file(file_id):
 
         OUTPUT_FOLDER,
 
-        "normalized_" +
-        file_id +
-        ".tif"
+        f"normalized_{file_id}.tif"
 
     )
 
@@ -1059,10 +1243,10 @@ def download_file(file_id):
         return jsonify({
 
             "success":
-            False,
+                False,
 
             "error":
-            "Normalized TIFF file not found."
+                "Normalized TIFF file not found."
 
         }), 404
 
@@ -1074,7 +1258,7 @@ def download_file(file_id):
         as_attachment=True,
 
         download_name=
-        "normalized_raster.tif"
+            "normalized_raster.tif"
 
     )
 
@@ -1092,9 +1276,7 @@ def download_image(file_id):
 
         OUTPUT_FOLDER,
 
-        "normalized_" +
-        file_id +
-        ".png"
+        f"normalized_{file_id}.png"
 
     )
 
@@ -1106,10 +1288,10 @@ def download_image(file_id):
         return jsonify({
 
             "success":
-            False,
+                False,
 
             "error":
-            "Normalized PNG file not found."
+                "Normalized PNG file not found."
 
         }), 404
 
@@ -1121,43 +1303,29 @@ def download_image(file_id):
         as_attachment=True,
 
         download_name=
-        "normalized_raster.png"
+            "normalized_raster.png"
 
     )
 
 
 # ============================================================
-# HEALTH CHECK
-# ============================================================
-
-@app.route(
-    "/health"
-)
-def health():
-
-    return jsonify({
-
-        "status":
-        "healthy",
-
-        "service":
-        "RasterNorm API"
-
-    })
-
-
-# ============================================================
-# RUN SERVER
+# RUN APPLICATION
 # ============================================================
 
 if __name__ == "__main__":
 
     port = int(
+
         os.environ.get(
+
             "PORT",
+
             5000
+
         )
+
     )
+
 
     app.run(
 
