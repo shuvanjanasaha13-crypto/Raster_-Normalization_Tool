@@ -1,29 +1,32 @@
-const normalizeBtn =
-document.getElementById("normalizeBtn");
+const normalizeBtn = document.getElementById("normalizeBtn");
+const rasterFile = document.getElementById("rasterFile");
+const method = document.getElementById("method");
+const status = document.getElementById("status");
 
-const rasterFile =
-document.getElementById("rasterFile");
+const normalizedPreview =
+    document.getElementById("normalizedPreview");
 
-const method =
-document.getElementById("method");
+const previewContainer =
+    document.getElementById("previewContainer");
 
-const status =
-document.getElementById("status");
+const downloadBtn =
+    document.getElementById("downloadBtn");
+
+
+previewContainer.style.display = "none";
 
 
 normalizeBtn.addEventListener(
     "click",
     async () => {
 
-
-        const file =
-        rasterFile.files[0];
+        const file = rasterFile.files[0];
 
 
         if (!file) {
 
             status.innerText =
-            "Please upload a raster file first.";
+                "Please upload a raster file first.";
 
             return;
 
@@ -31,18 +34,17 @@ normalizeBtn.addEventListener(
 
 
         status.innerText =
-        "Processing raster...";
+            "Processing raster... Please wait.";
+
+        normalizeBtn.disabled = true;
 
 
-        const formData =
-        new FormData();
-
+        const formData = new FormData();
 
         formData.append(
             "file",
             file
         );
-
 
         formData.append(
             "method",
@@ -52,70 +54,83 @@ normalizeBtn.addEventListener(
 
         try {
 
-
-            const response =
-            await fetch(
+            const response = await fetch(
 
                 "https://raster-norm-api-q1bl.onrender.com/normalize",
 
                 {
-
-                    method:
-
-                    "POST",
-
-                    body:
-
-                    formData
-
+                    method: "POST",
+                    body: formData
                 }
 
             );
 
 
-            const blob =
-            await response.blob();
+            if (!response.ok) {
+
+                throw new Error(
+                    "Server error"
+                );
+
+            }
 
 
-            const url =
-            window.URL.createObjectURL(
-                blob
-            );
+            const result =
+                await response.json();
 
 
-            const a =
-            document.createElement(
-                "a"
-            );
+            if (result.error) {
+
+                throw new Error(
+                    result.error
+                );
+
+            }
 
 
-            a.href =
-            url;
+            /* SHOW PREVIEW */
+
+            normalizedPreview.src =
+                "data:image/png;base64," +
+                result.preview;
 
 
-            a.download =
-            "normalized_raster.tif";
+            previewContainer.style.display =
+                "block";
 
 
-            a.click();
+            /* DOWNLOAD TIFF */
+
+            downloadBtn.href =
+                "https://raster-norm-api-q1bl.onrender.com" +
+                result.download_url;
+
+
+            downloadBtn.style.display =
+                "inline-block";
 
 
             status.innerText =
-            "Normalization completed!";
-
+                "Normalization completed!";
 
         }
 
 
         catch (error) {
 
+            console.error(error);
 
             status.innerText =
-            "Error processing raster.";
-
+                "Error: " + error.message;
 
         }
 
+
+        finally {
+
+            normalizeBtn.disabled = false;
+
+        }
 
     }
 );
