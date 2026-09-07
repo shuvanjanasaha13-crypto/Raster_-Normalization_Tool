@@ -3,3 +3,4 @@ numpy
 rasterio
 gunicorn
 flask-cors
+matplotlib
