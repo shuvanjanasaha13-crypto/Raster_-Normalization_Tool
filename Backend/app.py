@@ -23,8 +23,6 @@ from normalization import (
 )
 
 
-app = Flask(__name__)
-
 
 UPLOAD_FOLDER = "uploads"
 
