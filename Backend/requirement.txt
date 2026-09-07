@@ -1,6 +1,7 @@
 Flask
+flask-cors
 numpy
 rasterio
-gunicorn
-flask-cors
 matplotlib
+Pillow
+gunicorn

@@ -1,259 +1,407 @@
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+```
+<meta charset="UTF-8">
 
-    <title>RasterNorm | Raster Normalization Tool</title>
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
 
-    <link rel="stylesheet" href="style.css">
+<title>RasterNorm | Raster Normalization Tool</title>
+
+<link rel="stylesheet" href="style.css">
+```
 
 </head>
 
 <body>
 
+<!-- =====================================================
+     NAVIGATION
+====================================================== -->
 
 <nav>
 
-    <div class="logo">
+```
+<div class="logo">
+    Raster<span>Norm</span>
+</div>
 
-        Raster<span>Norm</span>
+<div class="nav-links">
 
-    </div>
+    <a href="#home">Home</a>
+    <a href="#tool">Tool</a>
+    <a href="#about">About</a>
 
-
-    <div class="nav-links">
-
-        <a href="#home">Home</a>
-
-        <a href="#tool">Tool</a>
-
-        <a href="#about">About</a>
-
-    </div>
+</div>
+```
 
 </nav>
 
-
+<!-- =====================================================
+     HERO
+====================================================== -->
 
 <section class="hero" id="home">
 
+```
+<div class="hero-content">
 
-    <div class="hero-content">
+    <h1>
 
-        <h1>
+        Professional Raster
+        <span>Normalization Tool</span>
 
-            Professional Raster
-            <span>Normalization Tool</span>
+    </h1>
 
-        </h1>
+    <p>
 
+        Upload your raster dataset and normalize
+        pixel values using advanced GIS processing.
+
+    </p>
+
+    <a href="#tool">
+
+        <button type="button">
+            Start Processing
+        </button>
+
+    </a>
+
+</div>
+```
+
+</section>
+
+<!-- =====================================================
+     TOOL
+====================================================== -->
+
+<section class="tool-section" id="tool">
+
+```
+<div class="tool-container">
+
+    <h2>
+        Normalize Your Raster
+    </h2>
+
+    <p>
+        Upload a raster dataset and choose a
+        normalization method.
+    </p>
+
+
+
+    <!-- =================================================
+         UPLOAD
+    ================================================== -->
+
+    <div class="upload-box">
+
+        <input
+            type="file"
+            id="rasterFile"
+            accept=".tif,.tiff,.png,.jpg,.jpeg"
+        >
 
         <p>
-
-            Upload your raster dataset and normalize
-            pixel values using advanced GIS processing.
-
+            Upload Raster File
         </p>
 
-
-        <a href="#tool">
-
-            <button>
-
-                Start Processing
-
-            </button>
-
-        </a>
+        <small>
+            Supported formats: TIFF, TIF, PNG, JPG, JPEG
+        </small>
 
     </div>
 
 
-</section>
+
+    <!-- =================================================
+         NORMALIZATION METHOD
+    ================================================== -->
+
+    <label for="method">
+
+        Select Normalization Method
+
+    </label>
+
+
+    <select id="method">
+
+        <option value="minmax">
+            Min-Max Normalization
+        </option>
+
+        <option value="zscore">
+            Z-Score Normalization
+        </option>
+
+        <option value="decimal_scaling">
+            Decimal Scaling
+        </option>
+
+    </select>
 
 
 
-<section class="tool-section"
-         id="tool">
+    <!-- =================================================
+         NORMALIZE BUTTON
+    ================================================== -->
 
+    <button
+        id="normalizeBtn"
+        type="button">
 
-    <div class="tool-container">
+        Normalize Raster
 
-
-        <h2>
-
-            Normalize Your Raster
-
-        </h2>
-
-
-        <p>
-
-            Upload a GeoTIFF raster file
-            and choose a normalization method.
-
-        </p>
+    </button>
 
 
 
-        <!-- UPLOAD -->
+    <!-- =================================================
+         STATUS
+    ================================================== -->
 
-        <div class="upload-box">
+    <div id="status">
+
+        Ready to process your raster
+
+    </div>
 
 
-            <input
-                type="file"
-                id="rasterFile"
-                accept=".tif,.tiff"
+
+    <!-- =================================================
+         RESULT CONTAINER
+    ================================================== -->
+
+    <div
+        id="previewContainer"
+        class="preview-container"
+        style="display: none;"
+    >
+
+
+        <!-- =============================================
+             NORMALIZED MAP
+        ============================================== -->
+
+        <h3>
+            Normalized Raster Preview
+        </h3>
+
+
+        <div class="preview-image-wrapper">
+
+            <img
+                id="normalizedPreview"
+                alt="Normalized raster preview"
             >
 
+        </div>
 
-            <p>
 
-                Upload Raster File
+
+        <!-- =============================================
+             DOWNLOAD
+        ============================================== -->
+
+        <div class="download-area">
+
+            <a
+                id="downloadBtn"
+                download="normalized_raster.tif"
+                style="display: none;"
+            >
+
+                <button type="button">
+
+                    Download Normalized Raster
+
+                </button>
+
+            </a>
+
+        </div>
+
+
+
+        <!-- =============================================
+             NORMALIZED VALUE GRID
+        ============================================== -->
+
+        <div
+            id="gridContainer"
+            class="grid-container"
+            style="display: none;"
+        >
+
+            <h3>
+                Normalized Value Grid
+            </h3>
+
+            <p class="grid-description">
+
+                Normalized pixel values represented
+                as a spatial raster grid.
 
             </p>
 
 
+            <div class="grid-info">
+
+                <span>
+                    Rows:
+                    <strong id="gridRows">—</strong>
+                </span>
+
+                <span>
+                    Columns:
+                    <strong id="gridColumns">—</strong>
+                </span>
+
+            </div>
+
+
+            <div class="grid-wrapper">
+
+                <table id="valueGrid">
+
+                    <thead id="valueGridHeader">
+                    </thead>
+
+                    <tbody id="valueGridBody">
+                    </tbody>
+
+                </table>
+
+            </div>
+
         </div>
 
 
 
-        <!-- NORMALIZATION -->
-
-        <label>
-
-            Select Normalization Method
-
-        </label>
-
-
-        <select id="method">
-
-
-            <option value="minmax">
-
-                Min-Max Normalization
-
-            </option>
-
-
-            <option value="zscore">
-
-                Z-Score Normalization
-
-            </option>
-
-
-        </select>
-
-
-
-        <!-- BUTTON -->
-
-        <button
-            id="normalizeBtn">
-
-            Normalize Raster
-
-        </button>
-
-
-
-        <!-- STATUS -->
+        <!-- =============================================
+             STATISTICS
+        ============================================== -->
 
         <div
-            id="status">
+            id="statisticsContainer"
+            class="statistics-container"
+            style="display: none;"
+        >
 
-            Ready to process your raster
+            <h3>
+                Normalization Statistics
+            </h3>
+
+            <div id="statistics">
+            </div>
 
         </div>
-        <!-- NORMALIZED RASTER PREVIEW -->
 
-<div id="previewContainer" class="preview-container">
-
-    <h3>Normalized Raster Preview</h3>
-
-    <img
-        id="normalizedPreview"
-        alt="Normalized raster preview"
-    >
-
-    <br>
-
-    <a
-        id="downloadBtn"
-        download="normalized_raster.tif"
-        style="display: none;"
-    >
-        <button>
-            Download Normalized Raster
-        </button>
-    </a>
-
-</div>
 
     </div>
 
+</div>
+```
 
 </section>
 
-
+<!-- =====================================================
+     ABOUT
+====================================================== -->
 
 <section
     id="about"
     class="about">
 
+```
+<h2>
+    About RasterNorm
+</h2>
 
-    <h2>
+<p>
 
-        About RasterNorm
+    RasterNorm is a GIS-based web application
+    designed to normalize raster datasets
+    for remote sensing and spatial analysis.
 
-    </h2>
+</p>
 
 
-    <p>
+<div class="about-features">
 
-        RasterNorm is a GIS-based web application
-        designed to normalize raster datasets
-        for remote sensing and spatial analysis.
+    <div>
+        <strong>01</strong>
+        <span>Raster Upload</span>
+    </div>
 
-    </p>
+    <div>
+        <strong>02</strong>
+        <span>Raster Normalization</span>
+    </div>
 
+    <div>
+        <strong>03</strong>
+        <span>Spatial Grid</span>
+    </div>
+
+    <div>
+        <strong>04</strong>
+        <span>TIFF Download</span>
+    </div>
+
+</div>
+```
 
 </section>
 
-
+<!-- =====================================================
+     FOOTER
+====================================================== -->
 
 <footer>
 
-   
-    <p class="creator">
-        Created by <strong>Shuvanjana Saha Shashi</strong>
-    </p>
+```
+<p class="creator">
 
-    <p class="student-id">
-        Student ID: 240417
-    </p>
+    Created by
+    <strong>
+        Shuvanjana Saha Shashi
+    </strong>
+
+</p>
 
 
-    <p>
+<p class="student-id">
 
-        © 2026 RasterNorm
-        | GIS & Remote Sensing Tool
+    Student ID: 240417
 
-    </p>
+</p>
 
+
+<p>
+
+    © 2026 RasterNorm
+    | GIS & Remote Sensing Tool
+
+</p>
+```
 
 </footer>
 
-
+<!-- =====================================================
+     JAVASCRIPT
+====================================================== -->
 
 <script src="script.js"></script>
+
 </body>
 
 </html>
