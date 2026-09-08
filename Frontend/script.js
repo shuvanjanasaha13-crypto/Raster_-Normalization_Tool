@@ -36,6 +36,18 @@ const previewContainer =
 const downloadBtn =
     document.getElementById("downloadBtn");
 
+// Optional elements used by the helper functions below.
+// If these IDs don't exist in your HTML, the functions just
+// skip them safely (no crash).
+const rasterInfoContainer =
+    document.getElementById("rasterInfo");
+
+const valueGridContainer =
+    document.getElementById("valueGrid");
+
+const statisticsContainer =
+    document.getElementById("statistics");
+
 
 // ============================================================
 // INITIAL SETTINGS
@@ -442,6 +454,54 @@ if (normalizeBtn) {
 
 
 // ============================================================
+// SHOW STATUS MESSAGE
+// ============================================================
+
+function showStatus(message, type = "info") {
+
+    if (!status) {
+        return;
+    }
+
+    status.textContent = message;
+
+    // "info" | "processing" | "success" | "error"
+    status.className = `status ${type}`;
+
+}
+
+
+// ============================================================
+// REMOVE OLD RESULTS (clears previous run's output before a
+// new upload is processed)
+// ============================================================
+
+function removeOldResults() {
+
+    if (normalizedPreview) {
+        normalizedPreview.src = "";
+    }
+
+    if (downloadBtn) {
+        downloadBtn.removeAttribute("href");
+    }
+
+    if (rasterInfoContainer) {
+        rasterInfoContainer.innerHTML = "";
+    }
+
+    if (valueGridContainer) {
+        valueGridContainer.innerHTML = "";
+    }
+
+    if (statisticsContainer) {
+        statisticsContainer.innerHTML = "";
+    }
+
+}
+
+
+// ============================================================
 // DISPLAY PREVIEW
 // ============================================================
 
@@ -545,5 +605,125 @@ function displayDownload(result) {
 
 
 // ============================================================
-// GET NORMALIZATION METHOD NAME
+// SHOW RASTER INFORMATION
+// (expects result.raster_info as an object of key/value pairs,
+//  e.g. { width: 512, height: 512, crs: "EPSG:4326", bands: 1 })
 // ============================================================
+
+function showRasterInfo(result) {
+
+    if (!rasterInfoContainer) {
+        return;
+    }
+
+    const info = result.raster_info;
+
+    if (!info || typeof info !== "object") {
+        rasterInfoContainer.innerHTML = "";
+        return;
+    }
+
+    let html = "<h3>Raster Information</h3><ul>";
+
+    for (const [key, value] of Object.entries(info)) {
+        html += `<li><strong>${key}:</strong> ${value}</li>`;
+    }
+
+    html += "</ul>";
+
+    rasterInfoContainer.innerHTML = html;
+
+}
+
+
+// ============================================================
+// SHOW VALUE GRID
+// (expects a 2D array of numbers, e.g. [[0.1, 0.2], [0.3, 0.4]])
+// ============================================================
+
+function showValueGrid(valueGrid) {
+
+    if (!valueGridContainer) {
+        return;
+    }
+
+    let html = '<h3>Value Grid</h3><table class="value-grid">';
+
+    valueGrid.forEach(row => {
+
+        html += "<tr>";
+
+        row.forEach(cell => {
+            const displayValue =
+                typeof cell === "number"
+                    ? cell.toFixed(3)
+                    : cell;
+
+            html += `<td>${displayValue}</td>`;
+        });
+
+        html += "</tr>";
+
+    });
+
+    html += "</table>";
+
+    valueGridContainer.innerHTML = html;
+
+}
+
+
+// ============================================================
+// SHOW STATISTICS
+// (expects result.statistics as an object, e.g.
+//  { min: 0, max: 255, mean: 127.5, std: 40.2 })
+// ============================================================
+
+function showStatistics(statistics) {
+
+    if (!statisticsContainer) {
+        return;
+    }
+
+    let html = "<h3>Statistics</h3><ul>";
+
+    for (const [key, value] of Object.entries(statistics)) {
+        const displayValue =
+            typeof value === "number"
+                ? value.toFixed(4)
+                : value;
+
+        html += `<li><strong>${key}:</strong> ${displayValue}</li>`;
+    }
+
+    html += "</ul>";
+
+    statisticsContainer.innerHTML = html;
+
+}
+
+
+// ============================================================
+// GET NORMALIZATION METHOD NAME
+// (maps the backend's method key to a friendly display name)
+// ============================================================
+
+function getMethodName(methodKey) {
+
+    const methodNames = {
+        "minmax": "Min-Max Normalization",
+        "min-max": "Min-Max Normalization",
+        "zscore": "Z-Score Normalization",
+        "z-score": "Z-Score Normalization",
+        "percentile": "Percentile Normalization (2nd-98th)"
+    };
+
+    if (!methodKey) {
+        return "Unknown";
+    }
+
+    const key = methodKey.toLowerCase();
+
+    return methodNames[key] || methodKey;
+
+}
