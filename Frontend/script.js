@@ -8,23 +8,17 @@
 // CONFIGURATION
 // ============================================================
 
-const API_URL =
-    "https://raster-norm-api-q1bl.onrender.com";
-
-
-const NORMALIZE_URL =
-    `${API_URL}/normalize`;
-
+const API_URL = "https://raster-norm-api-q1bl.onrender.com";
 
 const ALLOWED_EXTENSIONS = [
-
     ".tif",
     ".tiff",
     ".png",
     ".jpg",
     ".jpeg"
-
 ];
+
+const REQUEST_TIMEOUT = 120000;
 
 
 // ============================================================
@@ -34,42 +28,34 @@ const ALLOWED_EXTENSIONS = [
 const normalizeBtn =
     document.getElementById("normalizeBtn");
 
-
 const rasterFile =
     document.getElementById("rasterFile");
-
 
 const method =
     document.getElementById("method");
 
-
 const status =
     document.getElementById("status");
-
 
 const normalizedPreview =
     document.getElementById("normalizedPreview");
 
-
 const previewContainer =
     document.getElementById("previewContainer");
-
 
 const downloadBtn =
     document.getElementById("downloadBtn");
 
 
+// ============================================================
+// RESULT CONTAINERS
+// ============================================================
+
 const rasterInfoContainer =
     document.getElementById("rasterInfo");
 
-
-const normalizedInfoContainer =
-    document.getElementById("normalizedInfo");
-
-
 const valueGridContainer =
     document.getElementById("valueGrid");
-
 
 const statisticsContainer =
     document.getElementById("statistics");
@@ -98,17 +84,6 @@ document.addEventListener(
 
         }
 
-
-        console.log(
-            "RasterNorm Frontend Loaded Successfully"
-        );
-
-
-        console.log(
-            "Backend API:",
-            API_URL
-        );
-
     }
 );
 
@@ -133,10 +108,21 @@ if (normalizeBtn) {
 
 async function normalizeRaster() {
 
+    // ========================================================
+    // CHECK FILE INPUT
+    // ========================================================
 
-    // ========================================================
-    // GET FILE
-    // ========================================================
+    if (!rasterFile) {
+
+        showStatus(
+            "Error: File input not found.",
+            "error"
+        );
+
+        return;
+
+    }
+
 
     const file =
         rasterFile.files[0];
@@ -149,11 +135,8 @@ async function normalizeRaster() {
     if (!file) {
 
         showStatus(
-
             "Please upload a TIFF, PNG, JPG or JPEG file.",
-
             "error"
-
         );
 
         return;
@@ -162,28 +145,25 @@ async function normalizeRaster() {
 
 
     // ========================================================
-    // CHECK FILE EXTENSION
+    // CHECK FILE TYPE
     // ========================================================
 
     const fileName =
         file.name.toLowerCase();
 
 
-    const isValidFile =
+    const validFile =
         ALLOWED_EXTENSIONS.some(
             extension =>
                 fileName.endsWith(extension)
         );
 
 
-    if (!isValidFile) {
+    if (!validFile) {
 
         showStatus(
-
-            "Unsupported file type. Please upload TIFF, PNG, JPG or JPEG.",
-
+            "Unsupported file type. Please upload TIFF, TIF, PNG, JPG or JPEG.",
             "error"
-
         );
 
         return;
@@ -192,31 +172,18 @@ async function normalizeRaster() {
 
 
     // ========================================================
-    // FILE SIZE CHECK
+    // START PROCESSING
     // ========================================================
 
-    const fileSizeMB =
-        file.size /
-        (1024 * 1024);
-
-
-    console.log(
-        "File Size:",
-        fileSizeMB.toFixed(2),
-        "MB"
+    setProcessingState(
+        true
     );
 
 
-    // ========================================================
-    // DISABLE BUTTON
-    // ========================================================
-
-    normalizeBtn.disabled =
-        true;
-
-
-    normalizeBtn.textContent =
-        "Processing Raster...";
+    showStatus(
+        "Uploading raster and starting normalization...",
+        "processing"
+    );
 
 
     // ========================================================
@@ -224,31 +191,6 @@ async function normalizeRaster() {
     // ========================================================
 
     removeOldResults();
-
-
-    // ========================================================
-    // HIDE RESULTS
-    // ========================================================
-
-    if (previewContainer) {
-
-        previewContainer.style.display =
-            "none";
-
-    }
-
-
-    // ========================================================
-    // SHOW STATUS
-    // ========================================================
-
-    showStatus(
-
-        "Uploading raster to RasterNorm server...",
-
-        "processing"
-
-    );
 
 
     // ========================================================
@@ -260,63 +202,56 @@ async function normalizeRaster() {
 
 
     formData.append(
-
         "file",
-
         file
-
     );
 
 
     formData.append(
-
         "method",
-
-        method.value
-
+        method
+            ? method.value
+            : "minmax"
     );
 
 
     // ========================================================
-    // DEBUG INFORMATION
+    // DEBUG
     // ========================================================
 
     console.log(
-        "================================="
+        "================================"
     );
 
-
     console.log(
-        "RASTERNORM REQUEST"
+        "RASTERNORM PROCESS STARTED"
     );
 
-
     console.log(
-        "================================="
+        "API:",
+        `${API_URL}/normalize`
     );
 
-
     console.log(
-        "API URL:",
-        NORMALIZE_URL
-    );
-
-
-    console.log(
-        "File Name:",
+        "File:",
         file.name
     );
 
-
     console.log(
         "File Size:",
-        file.size
+        file.size,
+        "bytes"
     );
-
 
     console.log(
         "Method:",
-        method.value
+        method
+            ? method.value
+            : "minmax"
+    );
+
+    console.log(
+        "================================"
     );
 
 
@@ -328,17 +263,14 @@ async function normalizeRaster() {
         new AbortController();
 
 
-    const timeoutId =
+    const timeout =
         setTimeout(
-
             () => {
 
                 controller.abort();
 
             },
-
-            120000
-
+            REQUEST_TIMEOUT
         );
 
 
@@ -348,21 +280,9 @@ async function normalizeRaster() {
 
     try {
 
-
-        showStatus(
-
-            "Processing raster... Please wait.",
-
-            "processing"
-
-        );
-
-
         const response =
             await fetch(
-
-                NORMALIZE_URL,
-
+                `${API_URL}/normalize`,
                 {
 
                     method: "POST",
@@ -373,16 +293,11 @@ async function normalizeRaster() {
                         controller.signal
 
                 }
-
             );
 
 
-        // ====================================================
-        // CLEAR TIMEOUT
-        // ====================================================
-
         clearTimeout(
-            timeoutId
+            timeout
         );
 
 
@@ -392,57 +307,49 @@ async function normalizeRaster() {
         );
 
 
-        console.log(
-            "Response OK:",
-            response.ok
-        );
-
-
         // ====================================================
-        // GET RESPONSE TEXT
+        // GET RESPONSE
         // ====================================================
 
-        const responseText =
-            await response.text();
+        const contentType =
+            response.headers.get(
+                "content-type"
+            );
 
-
-        console.log(
-            "Server Response:",
-            responseText
-        );
-
-
-        // ====================================================
-        // PARSE JSON
-        // ====================================================
 
         let result;
 
 
-        try {
+        if (
+            contentType
+            &&
+            contentType.includes(
+                "application/json"
+            )
+        ) {
 
             result =
-                JSON.parse(
-                    responseText
-                );
+                await response.json();
 
         }
 
+        else {
 
-        catch (parseError) {
+            const responseText =
+                await response.text();
+
 
             console.error(
-                "JSON Parse Error:",
-                parseError
+                "Invalid Server Response:",
+                responseText.substring(
+                    0,
+                    1000
+                )
             );
 
 
             throw new Error(
-
-                "Server returned invalid data. " +
-
-                `HTTP Status: ${response.status}`
-
+                "Server returned an invalid response."
             );
 
         }
@@ -460,7 +367,7 @@ async function normalizeRaster() {
 
                 result.message ||
 
-                `Server Error: HTTP ${response.status}`
+                `Server error: HTTP ${response.status}`
 
             );
 
@@ -477,6 +384,8 @@ async function normalizeRaster() {
 
                 result.error ||
 
+                result.message ||
+
                 "Raster normalization failed."
 
             );
@@ -489,18 +398,12 @@ async function normalizeRaster() {
         // ====================================================
 
         console.log(
-            "Raster Normalization Successful"
-        );
-
-
-        console.log(
-            "Result:",
-            result
+            "Normalization successful."
         );
 
 
         // ====================================================
-        // DISPLAY RESULTS
+        // DISPLAY PREVIEW
         // ====================================================
 
         displayPreview(
@@ -508,25 +411,9 @@ async function normalizeRaster() {
         );
 
 
-        displayRasterInfo(
-            result
-        );
-
-
-        displayNormalizedInfo(
-            result
-        );
-
-
-        displayStatistics(
-            result.statistics
-        );
-
-
-        displayValueGrid(
-            result.value_grid
-        );
-
+        // ====================================================
+        // DISPLAY DOWNLOAD
+        // ====================================================
 
         displayDownload(
             result
@@ -534,7 +421,34 @@ async function normalizeRaster() {
 
 
         // ====================================================
-        // SHOW RESULTS CONTAINER
+        // DISPLAY RASTER INFORMATION
+        // ====================================================
+
+        showRasterInfo(
+            result
+        );
+
+
+        // ====================================================
+        // DISPLAY VALUE GRID
+        // ====================================================
+
+        showValueGrid(
+            result.value_grid
+        );
+
+
+        // ====================================================
+        // DISPLAY STATISTICS
+        // ====================================================
+
+        showStatistics(
+            result.statistics
+        );
+
+
+        // ====================================================
+        // SHOW RESULT SECTION
         // ====================================================
 
         if (previewContainer) {
@@ -546,25 +460,20 @@ async function normalizeRaster() {
 
 
         // ====================================================
-        // METHOD NAME
+        // SUCCESS MESSAGE
         // ====================================================
 
         const methodName =
             result.normalization_method_name ||
 
             getMethodName(
-                result.normalization_method ||
-                method.value
+                result.normalization_method
             );
 
 
-        // ====================================================
-        // SUCCESS STATUS
-        // ====================================================
-
         showStatus(
 
-            `Normalization completed successfully using ${methodName}!`,
+            `✓ Normalization completed successfully using ${methodName}`,
 
             "success"
 
@@ -572,35 +481,25 @@ async function normalizeRaster() {
 
 
         // ====================================================
-        // SCROLL TO RESULTS
+        // SCROLL TO RESULT
         // ====================================================
 
         setTimeout(
-
             () => {
 
                 if (previewContainer) {
 
                     previewContainer.scrollIntoView(
-
                         {
-
-                            behavior:
-                                "smooth",
-
-                            block:
-                                "start"
-
+                            behavior: "smooth",
+                            block: "start"
                         }
-
                     );
 
                 }
 
             },
-
             300
-
         );
 
 
@@ -613,23 +512,13 @@ async function normalizeRaster() {
 
     catch (error) {
 
-
-        console.error(
-            "================================="
+        clearTimeout(
+            timeout
         );
 
 
         console.error(
-            "RASTERNORM ERROR"
-        );
-
-
-        console.error(
-            "================================="
-        );
-
-
-        console.error(
+            "RasterNorm Error:",
             error
         );
 
@@ -640,57 +529,40 @@ async function normalizeRaster() {
 
 
         // ====================================================
-        // REQUEST TIMEOUT
+        // TIMEOUT
         // ====================================================
 
         if (
-            error.name ===
-            "AbortError"
+            error.name === "AbortError"
         ) {
 
             errorMessage =
-
-                "Request timed out. " +
-
-                "The server may be processing a large raster or waking up. " +
-
-                "Please wait and try again.";
+                "Request timed out. The raster may be too large or the Render server is taking too long.";
 
         }
 
 
         // ====================================================
-        // CONNECTION / CORS ERROR
+        // CORS / CONNECTION ERROR
         // ====================================================
 
         else if (
-
             error.name === "TypeError"
-
-            ||
-
-            errorMessage
-                .toLowerCase()
-                .includes("failed to fetch")
-
         ) {
 
             errorMessage =
-
-                "Connection blocked or backend unavailable. " +
-
-                "This may be caused by CORS configuration or the Render server being offline.";
+                "Connection failed. This may be a CORS configuration problem or the backend server is unavailable.";
 
         }
 
 
         // ====================================================
-        // DISPLAY ERROR
+        // SHOW ERROR
         // ====================================================
 
         showStatus(
 
-            `Error: ${errorMessage}`,
+            `✕ ${errorMessage}`,
 
             "error"
 
@@ -705,15 +577,40 @@ async function normalizeRaster() {
 
     finally {
 
-
-        clearTimeout(
-            timeoutId
+        setProcessingState(
+            false
         );
 
+    }
 
-        normalizeBtn.disabled =
-            false;
+}
 
+
+// ============================================================
+// PROCESSING STATE
+// ============================================================
+
+function setProcessingState(
+    isProcessing
+) {
+
+    if (!normalizeBtn) {
+        return;
+    }
+
+
+    normalizeBtn.disabled =
+        isProcessing;
+
+
+    if (isProcessing) {
+
+        normalizeBtn.textContent =
+            "Processing Raster...";
+
+    }
+
+    else {
 
         normalizeBtn.textContent =
             "Normalize Raster";
@@ -732,11 +629,8 @@ function showStatus(
     type = "info"
 ) {
 
-
     if (!status) {
-
         return;
-
     }
 
 
@@ -756,10 +650,7 @@ function showStatus(
 
 function removeOldResults() {
 
-
-    // ========================================================
-    // IMAGE
-    // ========================================================
+    // Preview
 
     if (normalizedPreview) {
 
@@ -769,9 +660,7 @@ function removeOldResults() {
     }
 
 
-    // ========================================================
-    // DOWNLOAD
-    // ========================================================
+    // Download
 
     if (downloadBtn) {
 
@@ -786,9 +675,7 @@ function removeOldResults() {
     }
 
 
-    // ========================================================
-    // RASTER INFORMATION
-    // ========================================================
+    // Raster Information
 
     if (rasterInfoContainer) {
 
@@ -798,21 +685,7 @@ function removeOldResults() {
     }
 
 
-    // ========================================================
-    // NORMALIZED INFORMATION
-    // ========================================================
-
-    if (normalizedInfoContainer) {
-
-        normalizedInfoContainer.innerHTML =
-            "";
-
-    }
-
-
-    // ========================================================
-    // VALUE GRID
-    // ========================================================
+    // Value Grid
 
     if (valueGridContainer) {
 
@@ -822,14 +695,22 @@ function removeOldResults() {
     }
 
 
-    // ========================================================
-    // STATISTICS
-    // ========================================================
+    // Statistics
 
     if (statisticsContainer) {
 
         statisticsContainer.innerHTML =
             "";
+
+    }
+
+
+    // Result Container
+
+    if (previewContainer) {
+
+        previewContainer.style.display =
+            "none";
 
     }
 
@@ -840,13 +721,12 @@ function removeOldResults() {
 // DISPLAY PREVIEW
 // ============================================================
 
-function displayPreview(result) {
-
+function displayPreview(
+    result
+) {
 
     if (!normalizedPreview) {
-
         return;
-
     }
 
 
@@ -857,14 +737,10 @@ function displayPreview(result) {
         result.preview;
 
 
-    // ========================================================
-    // NO IMAGE
-    // ========================================================
-
     if (!imageData) {
 
         console.warn(
-            "No preview image returned."
+            "No preview image received."
         );
 
         return;
@@ -898,9 +774,7 @@ function displayPreview(result) {
     // ========================================================
 
     else if (
-
         imageData.startsWith("http")
-
     ) {
 
         normalizedPreview.src =
@@ -921,16 +795,6 @@ function displayPreview(result) {
     }
 
 
-    normalizedPreview.onload =
-        () => {
-
-            console.log(
-                "Preview image loaded successfully."
-            );
-
-        };
-
-
     normalizedPreview.onerror =
         () => {
 
@@ -944,514 +808,223 @@ function displayPreview(result) {
 
 
 // ============================================================
-// DISPLAY RASTER INFORMATION
+// DISPLAY DOWNLOAD BUTTON
 // ============================================================
 
-function displayRasterInfo(result) {
+function displayDownload(
+    result
+) {
 
-
-    if (!rasterInfoContainer) {
-
+    if (
+        !downloadBtn
+    ) {
         return;
-
     }
 
 
-    const fileName =
-
-        result.filename ||
-
-        "Unknown";
-
-
-    const fileType =
-
-        result.file_type ||
-
-        "Unknown";
-
-
-    const width =
-
-        result.width ??
-
-        "Unknown";
-
-
-    const height =
-
-        result.height ??
-
-        "Unknown";
-
-
-    const crs =
-
-        result.crs ||
-
-        "Not Available";
-
-
-    const georeferenced =
-
-        result.is_georeferenced
-
-            ? "Yes"
-
-            : "No";
-
-
-    const totalPixels =
-
-        (
-
-            typeof result.width === "number"
-
-            &&
-
-            typeof result.height === "number"
-
-        )
-
-            ?
-
-            (
-                result.width *
-                result.height
-            ).toLocaleString()
-
-            :
-
-            "Unknown";
-
-
-    rasterInfoContainer.innerHTML = `
-
-        <h3>
-
-            Raster Information
-
-        </h3>
-
-
-        <div class="info-grid">
-
-
-            <div class="info-item">
-
-                <strong>
-                    File Name
-                </strong>
-
-                <span>
-                    ${escapeHTML(fileName)}
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    File Type
-                </strong>
-
-                <span>
-                    ${escapeHTML(fileType)}
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    Width
-                </strong>
-
-                <span>
-                    ${width} pixels
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    Height
-                </strong>
-
-                <span>
-                    ${height} pixels
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    Total Pixels
-                </strong>
-
-                <span>
-                    ${totalPixels}
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    Georeferenced
-                </strong>
-
-                <span>
-                    ${georeferenced}
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    CRS
-                </strong>
-
-                <span>
-                    ${escapeHTML(crs)}
-                </span>
-
-            </div>
-
-
-        </div>
-
-    `;
-
-}
-
-
-// ============================================================
-// DISPLAY NORMALIZED VALUE INFORMATION
-// ============================================================
-
-function displayNormalizedInfo(result) {
-
-
-    if (!normalizedInfoContainer) {
-
-        return;
-
-    }
-
-
-    const methodKey =
-
-        result.normalization_method ||
-
-        method.value;
-
-
-    const methodName =
-
-        result.normalization_method_name ||
-
-        getMethodName(
-            methodKey
+    if (
+        !result.download_url
+    ) {
+
+        console.warn(
+            "Download URL not found."
         );
 
-
-    let valueRange =
-        "Calculated from valid raster pixels";
-
-
-    // ========================================================
-    // MIN MAX
-    // ========================================================
-
-    if (
-        methodKey === "minmax"
-    ) {
-
-        valueRange =
-            "0.000000 to 1.000000";
-
-    }
-
-
-    // ========================================================
-    // Z SCORE
-    // ========================================================
-
-    else if (
-        methodKey === "zscore"
-    ) {
-
-        valueRange =
-            "Mean = 0 and Standard Deviation = 1";
-
-    }
-
-
-    // ========================================================
-    // DECIMAL SCALING
-    // ========================================================
-
-    else if (
-        methodKey === "decimal_scaling"
-    ) {
-
-        valueRange =
-            "Values scaled using powers of 10";
-
-    }
-
-
-    normalizedInfoContainer.innerHTML = `
-
-        <h3>
-
-            Normalized Value Information
-
-        </h3>
-
-
-        <div class="info-grid">
-
-
-            <div class="info-item">
-
-                <strong>
-                    Normalization Method
-                </strong>
-
-                <span>
-                    ${escapeHTML(methodName)}
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    Method Key
-                </strong>
-
-                <span>
-                    ${escapeHTML(methodKey)}
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    Expected Value Range
-                </strong>
-
-                <span>
-                    ${escapeHTML(valueRange)}
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    Output Data Type
-                </strong>
-
-                <span>
-                    Float32
-                </span>
-
-            </div>
-
-
-        </div>
-
-    `;
-
-}
-
-
-// ============================================================
-// DISPLAY STATISTICS
-// ============================================================
-
-function displayStatistics(statistics) {
-
-
-    if (
-
-        !statisticsContainer
-
-        ||
-
-        !statistics
-
-    ) {
-
         return;
 
     }
 
 
-    const minimum =
-
-        statistics.minimum ??
-        statistics.min ??
-        "N/A";
+    let downloadURL =
+        result.download_url;
 
 
-    const maximum =
+    // ========================================================
+    // ADD API URL
+    // ========================================================
 
-        statistics.maximum ??
-        statistics.max ??
-        "N/A";
+    if (
+        !downloadURL.startsWith("http")
+    ) {
 
+        downloadURL =
+            `${API_URL}${downloadURL}`;
 
-    const mean =
-
-        statistics.mean ??
-        "N/A";
-
-
-    const standardDeviation =
-
-        statistics.standard_deviation ??
-        statistics.std ??
-        "N/A";
+    }
 
 
-    const validPixels =
-
-        statistics.valid_pixels ??
-        "N/A";
+    downloadBtn.href =
+        downloadURL;
 
 
-    statisticsContainer.innerHTML = `
-
-        <h3>
-
-            Normalized Raster Statistics
-
-        </h3>
+    downloadBtn.download =
+        "normalized_raster.tif";
 
 
-        <div class="info-grid">
-
-
-            <div class="info-item">
-
-                <strong>
-                    Minimum
-                </strong>
-
-                <span>
-
-                    ${formatNumber(minimum)}
-
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    Maximum
-                </strong>
-
-                <span>
-
-                    ${formatNumber(maximum)}
-
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    Mean
-                </strong>
-
-                <span>
-
-                    ${formatNumber(mean)}
-
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    Standard Deviation
-                </strong>
-
-                <span>
-
-                    ${formatNumber(standardDeviation)}
-
-                </span>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <strong>
-                    Valid Pixels
-                </strong>
-
-                <span>
-
-                    ${formatInteger(validPixels)}
-
-                </span>
-
-            </div>
-
-
-        </div>
-
-    `;
+    downloadBtn.style.display =
+        "inline-block";
 
 }
 
 
 // ============================================================
-// DISPLAY VALUE GRID
+// SHOW RASTER INFORMATION
 // ============================================================
 
-function displayValueGrid(valueGrid) {
+function showRasterInfo(
+    result
+) {
 
+    if (!rasterInfoContainer) {
+        return;
+    }
+
+
+    // ========================================================
+    // CREATE INFORMATION OBJECT
+    // ========================================================
+
+    const rasterInfo = {
+
+        "File Name":
+
+            result.filename ||
+            "Unknown",
+
+
+        "File Type":
+
+            result.file_type ||
+            "Unknown",
+
+
+        "Width":
+
+            result.width ??
+            "Unknown",
+
+
+        "Height":
+
+            result.height ??
+            "Unknown",
+
+
+        "CRS":
+
+            result.crs ||
+            "Not Available",
+
+
+        "Georeferenced":
+
+            result.is_georeferenced
+                ? "Yes"
+                : "No",
+
+
+        "Normalization":
+
+            result.normalization_method_name ||
+
+            getMethodName(
+                result.normalization_method
+            )
+
+    };
+
+
+    // ========================================================
+    // ADD raster_info IF BACKEND SENDS IT
+    // ========================================================
+
+    if (
+        result.raster_info
+        &&
+        typeof result.raster_info === "object"
+    ) {
+
+        Object.assign(
+
+            rasterInfo,
+
+            result.raster_info
+
+        );
+
+    }
+
+
+    // ========================================================
+    // HTML
+    // ========================================================
+
+    let html =
+
+        `<h3>Raster Information</h3>
+
+        <div class="raster-info-grid">`;
+
+
+    Object.entries(
+        rasterInfo
+    ).forEach(
+
+        ([key, value]) => {
+
+            html += `
+
+                <div class="info-item">
+
+                    <span class="info-label">
+                        ${escapeHTML(key)}
+                    </span>
+
+                    <span class="info-value">
+                        ${escapeHTML(String(value))}
+                    </span>
+
+                </div>
+
+            `;
+
+        }
+
+    );
+
+
+    html +=
+        "</div>";
+
+
+    rasterInfoContainer.innerHTML =
+        html;
+
+}
+
+
+// ============================================================
+// SHOW VALUE GRID
+// ============================================================
+
+function showValueGrid(
+    valueGrid
+) {
 
     if (!valueGridContainer) {
-
         return;
-
     }
 
 
     // ========================================================
-    // CHECK GRID
+    // NO GRID
     // ========================================================
 
     if (
 
-        !Array.isArray(valueGrid)
+        !Array.isArray(
+            valueGrid
+        )
 
         ||
 
@@ -1461,16 +1034,11 @@ function displayValueGrid(valueGrid) {
 
         valueGridContainer.innerHTML = `
 
-            <h3>
+            <h3>Normalized Value Grid</h3>
 
-                Normalized Spatial Grid
+            <p class="no-data">
 
-            </h3>
-
-
-            <p>
-
-                No grid values available.
+                No value grid available.
 
             </p>
 
@@ -1488,22 +1056,12 @@ function displayValueGrid(valueGrid) {
     let html = `
 
         <h3>
-
-            Normalized Spatial Grid
-
+            Normalized Value Grid
         </h3>
-
-
-        <p>
-
-            Sampled normalized raster values
-
-        </p>
-
 
         <div class="grid-wrapper">
 
-        <table class="value-grid">
+            <table class="value-grid">
 
     `;
 
@@ -1512,35 +1070,28 @@ function displayValueGrid(valueGrid) {
     // HEADER
     // ========================================================
 
-    html +=
-        "<thead><tr>";
-
+    html += "<thead><tr>";
 
     html +=
         "<th>Row</th>";
 
 
-    const columnCount =
-        valueGrid[0].length;
+    const firstRow =
+        valueGrid[0];
 
 
-    for (
-
-        let column = 0;
-
-        column < columnCount;
-
-        column++
-
+    if (
+        Array.isArray(firstRow)
     ) {
 
-        html +=
+        firstRow.forEach(
+            (_, index) => {
 
-            `<th>
+                html +=
+                    `<th>C${index + 1}</th>`;
 
-                C${column + 1}
-
-            </th>`;
+            }
+        );
 
     }
 
@@ -1558,84 +1109,86 @@ function displayValueGrid(valueGrid) {
 
 
     valueGrid.forEach(
-
-        (
-            row,
-            rowIndex
-        ) => {
-
+        (row, rowIndex) => {
 
             html +=
                 "<tr>";
 
 
             html +=
-
-                `<th>
-
-                    R${rowIndex + 1}
-
-                </th>`;
+                `<th>R${rowIndex + 1}</th>`;
 
 
-            row.forEach(
-                cell => {
+            if (
+                Array.isArray(row)
+            ) {
 
+                row.forEach(
+                    cell => {
 
-                    let displayValue;
-
-
-                    if (
-
-                        typeof cell === "number"
-
-                        &&
-
-                        Number.isFinite(cell)
-
-                    ) {
-
-                        displayValue =
-                            cell.toFixed(4);
-
-                    }
-
-
-                    else {
-
-                        displayValue =
+                        let displayValue =
                             "N/A";
 
+
+                        if (
+                            typeof cell === "number"
+                        ) {
+
+                            if (
+                                Number.isFinite(cell)
+                            ) {
+
+                                displayValue =
+                                    cell.toFixed(4);
+
+                            }
+
+                        }
+
+                        else if (
+                            cell !== null
+                            &&
+                            cell !== undefined
+                        ) {
+
+                            displayValue =
+                                cell;
+
+                        }
+
+
+                        html += `
+
+                            <td>
+                                ${escapeHTML(
+                                    String(displayValue)
+                                )}
+                            </td>
+
+                        `;
+
                     }
+                );
 
-
-                    html +=
-
-                        `<td>
-
-                            ${displayValue}
-
-                        </td>`;
-
-                }
-            );
+            }
 
 
             html +=
                 "</tr>";
 
         }
-
     );
 
 
-    html +=
+    html += `
 
-        "</tbody>" +
+            </tbody>
 
-        "</table>" +
+            </table>
 
-        "</div>";
+        </div>
+
+    `;
 
 
     valueGridContainer.innerHTML =
@@ -1645,210 +1198,159 @@ function displayValueGrid(valueGrid) {
 
 
 // ============================================================
-// DISPLAY DOWNLOAD
+// SHOW STATISTICS
 // ============================================================
 
-function displayDownload(result) {
+function showStatistics(
+    statistics
+) {
+
+    if (!statisticsContainer) {
+        return;
+    }
 
 
     if (
 
-        !downloadBtn
+        !statistics
 
         ||
 
-        !result.download_url
+        typeof statistics !== "object"
 
     ) {
+
+        statisticsContainer.innerHTML =
+
+            `<h3>Normalized Value Statistics</h3>
+
+            <p class="no-data">
+
+                No statistics available.
+
+            </p>`;
 
         return;
 
     }
 
 
-    let downloadURL =
-        result.download_url;
-
-
     // ========================================================
-    // ADD BACKEND URL
+    // FRIENDLY NAMES
     // ========================================================
 
-    if (
+    const friendlyNames = {
 
-        !downloadURL.startsWith("http")
+        minimum:
+            "Minimum Value",
 
-    ) {
+        maximum:
+            "Maximum Value",
 
-        downloadURL =
+        mean:
+            "Mean Value",
 
-            `${API_URL}${downloadURL}`;
+        standard_deviation:
+            "Standard Deviation",
 
-    }
+        valid_pixels:
+            "Valid Pixels"
 
-
-    downloadBtn.href =
-        downloadURL;
-
-
-    downloadBtn.download =
-        "normalized_raster.tif";
-
-
-    downloadBtn.style.display =
-        "inline-block";
+    };
 
 
-    console.log(
-        "Download URL:",
-        downloadURL
+    let html = `
+
+        <h3>
+            Normalized Value Information
+        </h3>
+
+        <div class="statistics-grid">
+
+    `;
+
+
+    Object.entries(
+        statistics
+    ).forEach(
+
+        ([key, value]) => {
+
+            const label =
+
+                friendlyNames[key] ||
+
+                formatLabel(key);
+
+
+            let displayValue;
+
+
+            if (
+                typeof value === "number"
+            ) {
+
+                if (
+                    Number.isInteger(value)
+                    &&
+                    key === "valid_pixels"
+                ) {
+
+                    displayValue =
+                        value.toLocaleString();
+
+                }
+
+                else {
+
+                    displayValue =
+                        value.toFixed(6);
+
+                }
+
+            }
+
+            else {
+
+                displayValue =
+                    value;
+
+            }
+
+
+            html += `
+
+                <div class="stat-card">
+
+                    <span class="stat-label">
+
+                        ${escapeHTML(label)}
+
+                    </span>
+
+                    <strong class="stat-value">
+
+                        ${escapeHTML(
+                            String(displayValue)
+                        )}
+
+                    </strong>
+
+                </div>
+
+            `;
+
+        }
+
     );
 
-}
 
+    html +=
+        "</div>";
 
-// ============================================================
-// FORMAT NUMBER
-// ============================================================
 
-function formatNumber(value) {
-
-
-    if (
-
-        value === "N/A"
-
-        ||
-
-        value === null
-
-        ||
-
-        value === undefined
-
-    ) {
-
-        return "N/A";
-
-    }
-
-
-    const number =
-        Number(value);
-
-
-    if (
-        !Number.isFinite(number)
-    ) {
-
-        return "N/A";
-
-    }
-
-
-    return number.toFixed(6);
-
-}
-
-
-// ============================================================
-// FORMAT INTEGER
-// ============================================================
-
-function formatInteger(value) {
-
-
-    if (
-
-        value === "N/A"
-
-        ||
-
-        value === null
-
-        ||
-
-        value === undefined
-
-    ) {
-
-        return "N/A";
-
-    }
-
-
-    const number =
-        Number(value);
-
-
-    if (
-        !Number.isFinite(number)
-    ) {
-
-        return "N/A";
-
-    }
-
-
-    return Math.round(
-        number
-    ).toLocaleString();
-
-}
-
-
-// ============================================================
-// ESCAPE HTML
-// ============================================================
-
-function escapeHTML(value) {
-
-
-    if (
-
-        value === null
-
-        ||
-
-        value === undefined
-
-    ) {
-
-        return "N/A";
-
-    }
-
-
-    const text =
-        String(value);
-
-
-    return text
-
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-
-        .replace(
-            /</g,
-            "&lt;"
-        )
-
-        .replace(
-            />/g,
-            "&gt;"
-        )
-
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-
-        .replace(
-            /'/g,
-            "&#039;"
-        );
+    statisticsContainer.innerHTML =
+        html;
 
 }
 
@@ -1857,44 +1359,9 @@ function escapeHTML(value) {
 // GET METHOD NAME
 // ============================================================
 
-function getMethodName(methodKey) {
-
-
-    const methodNames = {
-
-
-        "minmax":
-
-            "Min-Max Normalization",
-
-
-        "min-max":
-
-            "Min-Max Normalization",
-
-
-        "zscore":
-
-            "Z-Score Normalization",
-
-
-        "z-score":
-
-            "Z-Score Normalization",
-
-
-        "decimal_scaling":
-
-            "Decimal Scaling Normalization",
-
-
-        "decimal-scaling":
-
-            "Decimal Scaling Normalization"
-
-
-    };
-
+function getMethodName(
+    methodKey
+) {
 
     if (!methodKey) {
 
@@ -1903,8 +1370,33 @@ function getMethodName(methodKey) {
     }
 
 
+    const methodNames = {
+
+        "minmax":
+            "Min-Max Normalization",
+
+        "min-max":
+            "Min-Max Normalization",
+
+        "zscore":
+            "Z-Score Normalization",
+
+        "z-score":
+            "Z-Score Normalization",
+
+        "decimal_scaling":
+            "Decimal Scaling Normalization",
+
+        "decimal-scaling":
+            "Decimal Scaling Normalization"
+
+    };
+
+
     const key =
-        methodKey.toLowerCase();
+        String(
+            methodKey
+        ).toLowerCase();
 
 
     return (
@@ -1916,5 +1408,52 @@ function getMethodName(methodKey) {
         methodKey
 
     );
+
+}
+
+
+// ============================================================
+// FORMAT LABEL
+// ============================================================
+
+function formatLabel(
+    text
+) {
+
+    return String(text)
+
+        .replace(
+            /_/g,
+            " "
+        )
+
+        .replace(
+            /\b\w/g,
+            character =>
+                character.toUpperCase()
+        );
+
+}
+
+
+// ============================================================
+// ESCAPE HTML
+// ============================================================
+
+function escapeHTML(
+    text
+) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+
+    div.textContent =
+        text;
+
+
+    return div.innerHTML;
 
 }
